@@ -11,7 +11,7 @@ def is_continuous_seq(move):
     return True
 
 # return the type of the move
-def get_move_type(move):
+def get_move_type(move, heaven_joker, earth_joker):  # 添加天癞子和地癞子作为参数
     move_size = len(move)
     move_dict = collections.Counter(move)
 
@@ -36,8 +36,15 @@ def get_move_type(move):
             return {'type': TYPE_15_WRONG}
 
     if move_size == 4:
-        if len(move_dict) == 1:
-            return {'type': TYPE_4_BOMB,  'rank': move[0]}
+        # 检查硬炸弹（非癞子）
+        if len(move_dict) == 1 and move[0] != heaven_joker and move[0] != earth_joker:
+            return {'type': TYPE_HARD_BOMB, 'rank': move[0]}
+        # 检查纯癞子炸弹
+        elif len(move_dict) == 1 and (move[0] == heaven_joker or move[0] == earth_joker):
+            return {'type': TYPE_PURE_JOKER_BOMB, 'rank': move[0]}
+        # 检查软炸（这里简单判断有癞子且非上述情况，实际需更精确逻辑）
+        elif any(c == heaven_joker or c == earth_joker for c in move) and len(move_dict) <= 2:
+            return {'type': TYPE_SOFT_BOMB, 'rank': move[0]}
         elif len(move_dict) == 2:
             if move[0] == move[1] == move[2] or move[1] == move[2] == move[3]:
                 return {'type': TYPE_6_3_1, 'rank': move[1]}
@@ -45,6 +52,10 @@ def get_move_type(move):
                 return {'type': TYPE_15_WRONG}
         else:
             return {'type': TYPE_15_WRONG}
+
+    # 检查癞子炸弹（≥4张癞子且有两种）
+    if move_size >=4 and all(c == heaven_joker or c == earth_joker for c in move) and len(set([c for c in move if c == heaven_joker or c == earth_joker])) == 2:
+        return {'type': TYPE_JOKER_BOMB, 'len': move_size}
 
     if is_continuous_seq(move):
         return {'type': TYPE_8_SERIAL_SINGLE, 'rank': move[0], 'len': len(move)}
