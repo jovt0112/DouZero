@@ -22,6 +22,10 @@ TYPE_12_SERIAL_3_2 = 12
 TYPE_13_4_2 = 13
 TYPE_14_4_22 = 14
 TYPE_15_WRONG = 15
+TYPE_SOFT_BOMB = 16  # 软炸，由 1 - 4 张相同点数非癞子牌加上 1 - 8 张癞子牌组成的 ≥ 四张的牌型
+TYPE_JOKER_BOMB = 17  # 癞子炸弹，由 ≥ 4 张癞子组成且必须有两种癞子同时存在
+TYPE_PURE_JOKER_BOMB = 18  # 纯癞子炸弹，由 4 张同样点数的癞子组成
+TYPE_HARD_BOMB = 19  # 硬炸弹，由 4 张同样点数的非癞子组成
 
 # betting round action
 PASS = 0
