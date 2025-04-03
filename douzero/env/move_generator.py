@@ -2,17 +2,18 @@ from douzero.env.utils import MIN_SINGLE_CARDS, MIN_PAIRS, MIN_TRIPLES, select
 import collections
 import itertools
 
+
 class MovesGener(object):
     """
     This is for generating the possible combinations
     """
-    def __init__(self, cards_list):
+    def __init__(self, cards_list, heaven_joker, earth_joker):
+        self.heaven_joker = heaven_joker
+        self.earth_joker = earth_joker
         self.cards_list = cards_list
         self.cards_dict = collections.defaultdict(int)
-
         for i in self.cards_list:
             self.cards_dict[i] += 1
-
         self.single_card_moves = []
         self.gen_type_1_single()
         self.pair_moves = []
@@ -23,15 +24,16 @@ class MovesGener(object):
         self.gen_type_4_bomb()
         self.final_bomb_moves = []
         self.gen_type_5_king_bomb()
+        self.soft_bomb_moves = []
+        self.joker_bomb_moves = []
+        self.pure_joker_bomb_moves = []
 
     def _gen_serial_moves(self, cards, min_serial, repeat=1, repeat_num=0):
         if repeat_num < min_serial:  # at least repeat_num is min_serial
             repeat_num = 0
-
         single_cards = sorted(list(set(cards)))
         seq_records = list()
         moves = list()
-
         start = i = 0
         longest = 1
         while i < len(single_cards):
@@ -43,13 +45,11 @@ class MovesGener(object):
                 i += 1
                 start = i
                 longest = 1
-
         for seq in seq_records:
             if seq[1] < min_serial:
                 continue
             start, longest = seq[0], seq[1]
             longest_list = single_cards[start: start + longest]
-
             if repeat_num == 0:  # No limitation on how many sequences
                 steps = min_serial
                 while steps <= longest:
@@ -59,7 +59,6 @@ class MovesGener(object):
                         moves.append(target_moves)
                         index += 1
                     steps += 1
-
             else:  # repeat_num > 0
                 if longest < repeat_num:
                     continue
@@ -68,7 +67,6 @@ class MovesGener(object):
                     target_moves = sorted(longest_list[index: index + repeat_num] * repeat)
                     moves.append(target_moves)
                     index += 1
-
         return moves
 
     def gen_type_1_single(self):
@@ -109,7 +107,7 @@ class MovesGener(object):
         for t in self.single_card_moves:
             for i in self.triple_cards_moves:
                 if t[0] != i[0]:
-                    result.append(t+i)
+                    result.append(t + i)
         return result
 
     def gen_type_7_3_2(self):
@@ -117,7 +115,7 @@ class MovesGener(object):
         for t in self.pair_moves:
             for i in self.triple_cards_moves:
                 if t[0] != i[0]:
-                    result.append(t+i)
+                    result.append(t + i)
         return result
 
     def gen_type_8_serial_single(self, repeat_num=0):
@@ -128,7 +126,6 @@ class MovesGener(object):
         for k, v in self.cards_dict.items():
             if v >= 2:
                 single_pairs.append(k)
-
         return self._gen_serial_moves(single_pairs, MIN_PAIRS, repeat=2, repeat_num=repeat_num)
 
     def gen_type_10_serial_triple(self, repeat_num=0):
@@ -136,39 +133,31 @@ class MovesGener(object):
         for k, v in self.cards_dict.items():
             if v >= 3:
                 single_triples.append(k)
-
         return self._gen_serial_moves(single_triples, MIN_TRIPLES, repeat=3, repeat_num=repeat_num)
 
     def gen_type_11_serial_3_1(self, repeat_num=0):
         serial_3_moves = self.gen_type_10_serial_triple(repeat_num=repeat_num)
         serial_3_1_moves = list()
-
         for s3 in serial_3_moves:  # s3 is like [3,3,3,4,4,4]
             s3_set = set(s3)
             new_cards = [i for i in self.cards_list if i not in s3_set]
-
             # Get any s3_len items from cards
             subcards = select(new_cards, len(s3_set))
-
             for i in subcards:
                 serial_3_1_moves.append(s3 + i)
-
         return list(k for k, _ in itertools.groupby(serial_3_1_moves))
 
     def gen_type_12_serial_3_2(self, repeat_num=0):
         serial_3_moves = self.gen_type_10_serial_triple(repeat_num=repeat_num)
         serial_3_2_moves = list()
         pair_set = sorted([k for k, v in self.cards_dict.items() if v >= 2])
-
         for s3 in serial_3_moves:
             s3_set = set(s3)
             pair_candidates = [i for i in pair_set if i not in s3_set]
-
             # Get any s3_len items from cards
             subcards = select(pair_candidates, len(s3_set))
             for i in subcards:
                 serial_3_2_moves.append(sorted(s3 + i * 2))
-
         return serial_3_2_moves
 
     def gen_type_13_4_2(self):
@@ -176,13 +165,12 @@ class MovesGener(object):
         for k, v in self.cards_dict.items():
             if v == 4:
                 four_cards.append(k)
-
         result = list()
         for fc in four_cards:
             cards_list = [k for k in self.cards_list if k != fc]
             subcards = select(cards_list, 2)
             for i in subcards:
-                result.append([fc]*4 + i)
+                result.append([fc] * 4 + i)
         return list(k for k, _ in itertools.groupby(result))
 
     def gen_type_14_4_22(self):
@@ -190,14 +178,53 @@ class MovesGener(object):
         for k, v in self.cards_dict.items():
             if v == 4:
                 four_cards.append(k)
-
         result = list()
         for fc in four_cards:
-            cards_list = [k for k, v in self.cards_dict.items() if k != fc and v>=2]
+            cards_list = [k for k, v in self.cards_dict.items() if k != fc and v >= 2]
             subcards = select(cards_list, 2)
             for i in subcards:
                 result.append([fc] * 4 + [i[0], i[0], i[1], i[1]])
         return result
+
+    def gen_soft_bomb(self):
+        self.soft_bomb_moves = []
+        for k in self.cards_dict.keys():
+            if k == self.heaven_joker or k == self.earth_joker:
+                continue
+            non_joker_count = self.cards_dict[k]
+            joker_count = self.cards_dict.get(self.heaven_joker, 0) + self.cards_dict.get(self.earth_joker, 0)
+            total = non_joker_count + joker_count
+            if total >= 4:
+                for num_non_joker in range(1, non_joker_count + 1):
+                    num_joker = total - num_non_joker
+                    if num_joker >= 1 and num_joker <= 8:
+                        move = [k] * num_non_joker
+                        if self.heaven_joker in self.cards_list:
+                            move.extend([self.heaven_joker] * self.cards_dict[self.heaven_joker])
+                        if self.earth_joker in self.cards_list:
+                            move.extend([self.earth_joker] * self.cards_dict[self.earth_joker])
+                        self.soft_bomb_moves.append(move)
+        return self.soft_bomb_moves
+
+    def gen_joker_bomb(self):
+        self.joker_bomb_moves = []
+        heaven_count = self.cards_dict.get(self.heaven_joker, 0)
+        earth_count = self.cards_dict.get(self.earth_joker, 0)
+        total_joker = heaven_count + earth_count
+        if total_joker >= 4 and heaven_count >= 1 and earth_count >= 1:
+            for num_heaven in range(1, total_joker):
+                num_earth = total_joker - num_heaven
+                if num_heaven + num_earth >= 4:
+                    move = [self.heaven_joker] * num_heaven + [self.earth_joker] * num_earth
+                    self.joker_bomb_moves.append(move)
+        return self.joker_bomb_moves
+
+    def gen_pure_joker_bomb(self):
+        self.pure_joker_bomb_moves = []
+        for joker in [self.heaven_joker, self.earth_joker]:
+            if self.cards_dict.get(joker, 0) >= 4:
+                self.pure_joker_bomb_moves.append([joker] * 4)
+        return self.pure_joker_bomb_moves
 
     # generate all possible moves from given cards
     def gen_moves(self):
@@ -216,4 +243,7 @@ class MovesGener(object):
         moves.extend(self.gen_type_12_serial_3_2())
         moves.extend(self.gen_type_13_4_2())
         moves.extend(self.gen_type_14_4_22())
+        moves.extend(self.gen_soft_bomb())
+        moves.extend(self.gen_joker_bomb())
+        moves.extend(self.gen_pure_joker_bomb())
         return moves
